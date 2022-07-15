@@ -1,0 +1,5 @@
+<% 300.times do |n| %>
+  hs_<%= n %>:
+    user: <%= "user_#{rand(0..100)}" %>
+    story: <%= "story_#{rand(0..500)}" %>
+<% end %>

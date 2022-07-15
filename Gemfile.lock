@@ -1,3 +1,10 @@
+GIT
+  remote: https://github.com/rails/rails-perftest
+  revision: 21113d31e63a6e9da7c195af8158587f5e941761
+  ref: 21113d31e63a6e9da7c195af8158587f5e941761
+  specs:
+    rails-perftest (0.0.7)
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -235,6 +242,7 @@ GEM
       rubocop (>= 0.72.0)
     rubocop-rspec (1.41.0)
       rubocop (>= 0.68.1)
+    ruby-prof (1.4.3)
     ruby-progressbar (1.11.0)
     ruby-rc4 (0.1.5)
     ruumba (0.1.17)
@@ -316,6 +324,7 @@ DEPENDENCIES
   rack-attack
   rack-mini-profiler
   rails (~> 6.1.6)
+  rails-perftest!
   rb-readline
   rotp
   rqrcode
@@ -323,6 +332,7 @@ DEPENDENCIES
   rubocop (= 0.81)
   rubocop-rails
   rubocop-rspec
+  ruby-prof
   ruumba
   scenic
   scenic-mysql_adapter
@@ -337,4 +347,4 @@ DEPENDENCIES
   webmock
 
 BUNDLED WITH
-   2.2.0
+   2.3.17

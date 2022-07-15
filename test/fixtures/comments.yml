@@ -1,0 +1,8 @@
+<% 2000.times do |n| %>
+  comment_<%= n %>:
+    short_id: <%= "c#{n}" %>
+    story: <%= "story#{rand(0..500)}" %>
+    user: <%= "user#{rand(0..100)}" %>
+    parent_comment: <%= rand > 0.7 ? nil : "comment_#{rand(0..2000)}" %>
+    comment: <%= "comment#{n}" %>
+<% end %>

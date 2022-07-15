@@ -1,0 +1,7 @@
+<% 10.times do |n| %>
+  hat_<%= n %>:
+    <% u = "user_#{rand(0..100)}" %>
+    user: <%= u %>
+    granted_by_user: <%= u %>
+    hat: <%= "hat#{n}" %>
+<% end %>
