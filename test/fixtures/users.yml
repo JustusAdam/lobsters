@@ -1,5 +1,5 @@
-<% 100.times do |n| %>
-  user_<%= n %>: 
+<% num_users.times do |n| %>
+  <%= user_id(n) %>: 
     username: <%= "user#{n}" %>
     email: <%= "user#{n}@test.com" %>
     is_admin: false

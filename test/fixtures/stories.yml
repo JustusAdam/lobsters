@@ -1,6 +1,6 @@
-<% 500.times do |n| %>
-  story_<%= n %>:
-    user: <%= "user_#{rand(0..100)}" %>
+<% num_stories.times do |n| %>
+  <%= story_id(n) %>:
+    user: <%= rand_user %>
     title: <%= "story#{n}" %>
     short_id: <%= "s#{n}" %>
 <% end %>

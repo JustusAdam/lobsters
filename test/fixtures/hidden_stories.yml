@@ -1,5 +1,9 @@
-<% 300.times do |n| %>
+<% (0..).lazy
+  .map {|n| [rand_user, rand_story] }
+  .uniq
+  .with_index
+  .take(num_hidden_stories).each do |e, n| %>
   hs_<%= n %>:
-    user: <%= "user_#{rand(0..100)}" %>
-    story: <%= "story_#{rand(0..500)}" %>
+    user: <%= e[0] %>
+    story: <%= e[1] %>
 <% end %>
