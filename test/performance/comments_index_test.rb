@@ -6,7 +6,15 @@ class CommentsIndexTest < ActionDispatch::PerformanceTest
   # self.profile_options = { runs: 5, metrics: [:wall_time, :memory],
   #                          output: 'tmp/performance', formats: [:flat] }
 
-  test "homepage" do
+  test "Original Comments Index" do
     get '/comments'
+    assert @controller.instance_of?(CommentsController)
+    assert_response :success
+  end
+
+  test "No-prefetch Comments Index" do
+    get '/comments/extra/index2'
+    assert @controller.instance_of?(CommentsController)
+    assert_response :success
   end
 end

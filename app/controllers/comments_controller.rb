@@ -279,6 +279,49 @@ class CommentsController < ApplicationController
     end
   end
 
+  def index2
+    @rss_link ||= {
+      :title => "RSS 2.0 - Newest Comments",
+      :href => "/comments.rss" + (@user ? "?token=#{@user.rss_token}" : ""),
+    }
+
+    @title = "Newest Comments"
+
+    @page = params[:page].to_i
+    if @page == 0
+      @page = 1
+    elsif @page < 0 || @page > (2 ** 32)
+      raise ActionController::RoutingError.new("page out of bounds")
+    end
+
+    @comments = Comment.accessible_to_user(@user)
+      .not_on_story_hidden_by(@user)
+      .order("id DESC")
+      .limit(COMMENTS_PER_PAGE)
+      .offset((@page - 1) * COMMENTS_PER_PAGE)
+
+    if @user
+      @votes = Vote.comment_votes_by_user_for_comment_ids_hash(@user.id, @comments.map(&:id))
+
+      @comments.each do |c|
+        if @votes[c.id]
+          c.current_vote = @votes[c.id]
+        end
+      end
+    end
+
+    respond_to do |format|
+      format.html { render :action => "index" }
+      format.rss {
+        if @user && params[:token].present?
+          @title = "Private comments feed for #{@user.username}"
+        end
+
+        render :action => "index.rss", :layout => false
+      }
+    end
+  end
+
   def upvoted
     @rss_link ||= {
       :title => "RSS 2.0 - Newest Comments",
