@@ -2,6 +2,7 @@ ENV["RAILS_ENV"] = "test"
 require File.expand_path('../../config/environment', __FILE__)
 require 'rails/test_help'
 
+
 class ActiveSupport::TestCase
   # Setup all fixtures in test/fixtures/*.(yml|csv) for all tests in alphabetical order.
   #
@@ -18,6 +19,11 @@ class ActiveSupport::TestCase
     NUM_HIDDEN_STORIES = ENV.fetch('NUM_HIDDEN_STORIES', NUM_USERS * ENV.fetch('HIDDEN_STORIES_PER_USER', 3).to_i).to_i
     NUM_HATS = ENV.fetch('NUM_HATS', (NUM_USERS / 10).floor).to_i
     NUM_COMMENTS = ENV.fetch('NUM_COMMENTS', NUM_STORIES * ENV.fetch('COMMENTS_PER_STORY', 4).to_i).to_i
+    CHANCE_STORY_IS_DELETED = ENV.fetch('CHANCE_STORY_IS_DELETED', 0.0).to_f
+
+    def chance_story_is_deleted
+      CHANCE_STORY_IS_DELETED
+    end
 
     def num_stories
       NUM_STORIES
@@ -44,7 +50,7 @@ class ActiveSupport::TestCase
     end
 
     def rand_user
-      user_id(rand(0..NUM_USERS))
+      user_id(sample(NUM_USERS))
     end
 
     def story_id(n)
@@ -52,7 +58,7 @@ class ActiveSupport::TestCase
     end
 
     def rand_story
-      story_id(rand(0..NUM_STORIES))
+      story_id(sample(NUM_STORIES))
     end
 
     def comment_id(n)
@@ -60,7 +66,12 @@ class ActiveSupport::TestCase
     end
 
     def rand_comment
-      comment_id(rand(0..NUM_COMMENTS))
+      comment_id(sample(NUM_COMMENTS))
+    end
+
+  private 
+    def sample(n)
+      rand(Range::new(0, n, true))
     end
   end
   ActiveRecord::FixtureSet.context_class.include FixturesHelper

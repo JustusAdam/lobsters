@@ -3,4 +3,5 @@
     user: <%= rand_user %>
     title: <%= "story#{n}" %>
     short_id: <%= "s#{n}" %>
+    is_deleted: <%= rand < chance_story_is_deleted %>
 <% end %>

@@ -1,5 +1,5 @@
 class CommentsController < ApplicationController
-  COMMENTS_PER_PAGE = 20
+  COMMENTS_PER_PAGE = ENV.fetch("COMMENTS_PER_PAGE", 20).to_i
 
   caches_page :index, :threads, if: CACHE_PAGE
 
@@ -11,6 +11,9 @@ class CommentsController < ApplicationController
 
   # for rss feeds, load the user's tag filters if a token is passed
   before_action :find_user_from_rss_token, :only => [:index]
+
+  class StopIteration < Exception
+  end
 
   def create
     if !(story = Story.where(:short_id => params[:story_id]).first) ||
@@ -248,10 +251,10 @@ class CommentsController < ApplicationController
     elsif @page < 0 || @page > (2 ** 32)
       raise ActionController::RoutingError.new("page out of bounds")
     end
-
+    
     @comments = Comment.accessible_to_user(@user)
       .not_on_story_hidden_by(@user)
-      .order("id DESC")
+      .order(id: :desc)
       .includes(:user, :hat, :story => :user)
       .joins(:story).where.not(stories: { is_deleted: true })
       .limit(COMMENTS_PER_PAGE)
@@ -267,19 +270,21 @@ class CommentsController < ApplicationController
       end
     end
 
-    respond_to do |format|
-      format.html { render :action => "index" }
-      format.rss {
-        if @user && params[:token].present?
-          @title = "Private comments feed for #{@user.username}"
-        end
+    benchmark("Rendering") do
+      respond_to do |format|
+        format.html { render :action => "index" }
+        format.rss {
+          if @user && params[:token].present?
+            @title = "Private comments feed for #{@user.username}"
+          end
 
-        render :action => "index.rss", :layout => false
-      }
+          render :action => "index.rss", :layout => false
+        }
+      end
     end
   end
 
-  def index2
+  def index_without_prefetching
     @rss_link ||= {
       :title => "RSS 2.0 - Newest Comments",
       :href => "/comments.rss" + (@user ? "?token=#{@user.rss_token}" : ""),
@@ -297,6 +302,7 @@ class CommentsController < ApplicationController
     @comments = Comment.accessible_to_user(@user)
       .not_on_story_hidden_by(@user)
       .order("id DESC")
+      .joins(:story).where.not(stories: { is_deleted: true })
       .limit(COMMENTS_PER_PAGE)
       .offset((@page - 1) * COMMENTS_PER_PAGE)
 
@@ -310,15 +316,75 @@ class CommentsController < ApplicationController
       end
     end
 
-    respond_to do |format|
-      format.html { render :action => "index" }
-      format.rss {
-        if @user && params[:token].present?
-          @title = "Private comments feed for #{@user.username}"
-        end
+    benchmark("Rendering") do
+      respond_to do |format|
+        format.html { render :action => "index" }
+        format.rss {
+          if @user && params[:token].present?
+            @title = "Private comments feed for #{@user.username}"
+          end
 
-        render :action => "index.rss", :layout => false
-      }
+          render :action => "index.rss", :layout => false
+        }
+      end
+    end
+  end
+
+
+  def naive_index
+    @rss_link ||= {
+      :title => "RSS 2.0 - Newest Comments",
+      :href => "/comments.rss" + (@user ? "?token=#{@user.rss_token}" : ""),
+    }
+
+    @title = "Newest Comments"
+
+    @page = params[:page].to_i
+    if @page == 0
+      @page = 1
+    elsif @page < 0 || @page > (2 ** 32)
+      raise ActionController::RoutingError.new("page out of bounds")
+    end
+
+    @comments = []
+    begin
+      Comment
+        .order("id DESC")
+        # I'm leaving the first two methods since they don't really do anything so long as we do not set @user
+        .accessible_to_user(@user)
+        .not_on_story_hidden_by(@user)
+        .find_each(batch_size: (COMMENTS_PER_PAGE * 1.3).to_i) do |comment|
+          if !comment.story.is_deleted
+            @comments.push comment
+          end
+          if @comments.size >= COMMENTS_PER_PAGE
+            raise StopIteration.new
+          end
+        end
+    rescue StopIteration
+    end
+    
+    if @user
+      @votes = Vote.comment_votes_by_user_for_comment_ids_hash(@user.id, @comments.map(&:id))
+
+      @comments.each do |c|
+        if @votes[c.id]
+          c.current_vote = @votes[c.id]
+        end
+      end
+    end
+
+    benchmark("Rendering") do
+      respond_to do |format|
+        format.html { render :action => "index" }
+        format.rss {
+          if @user && params[:token].present?
+            @title = "Private comments feed for #{@user.username}"
+          end
+
+          render :action => "index.rss", :layout => false
+        }
+      end
     end
   end
 
