@@ -2,6 +2,19 @@ ENV["RAILS_ENV"] = "test"
 require File.expand_path('../../config/environment', __FILE__)
 require 'rails/test_help'
 
+module Misc
+  class NotABoolean < Exception
+  end
+  def self.to_bool(s)
+    if s.instance_of?(TrueClass) || s == "t" || s == "true"
+      true
+    elsif s.instance_of?(FalseClass) || s == "f" || s == "false"
+      false
+    else
+      raise NotABoolean.new s
+    end
+  end
+end
 
 class ActiveSupport::TestCase
   # Setup all fixtures in test/fixtures/*.(yml|csv) for all tests in alphabetical order.
@@ -11,6 +24,26 @@ class ActiveSupport::TestCase
   fixtures :all
 
   # Add more helper methods to be used by all tests here...
+
+  ENABLE_QUERY_LOGGING = Misc.to_bool(ENV.fetch('ENABLE_QUERY_LOGGING', false))
+
+  def configure_logging
+    if ENABLE_QUERY_LOGGING
+      Rails.logger.level = ActiveSupport::Logger::DEBUG
+    end
+  end
+
+  
+  # Sadly this general override does not work
+  #
+  # alias :super_test :test
+  #
+  # def test(*args, &block)
+  #   super_test(*args) do 
+  #     configure_logging
+  #     block.call(self)
+  #   end
+  # end
 
   module FixturesHelper
 
