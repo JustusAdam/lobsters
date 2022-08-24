@@ -252,11 +252,8 @@ class CommentsController < ApplicationController
       raise ActionController::RoutingError.new("page out of bounds")
     end
     
-    @comments = Comment.accessible_to_user(@user)
-      .not_on_story_hidden_by(@user)
-      .order(id: :desc)
+    @comments = comments_for_index_base
       .includes(:user, :hat, :story => :user)
-      .joins(:story).where.not(stories: { is_deleted: true })
       .limit(COMMENTS_PER_PAGE)
       .offset((@page - 1) * COMMENTS_PER_PAGE)
 
@@ -299,10 +296,7 @@ class CommentsController < ApplicationController
       raise ActionController::RoutingError.new("page out of bounds")
     end
 
-    @comments = Comment.accessible_to_user(@user)
-      .not_on_story_hidden_by(@user)
-      .order("id DESC")
-      .joins(:story).where.not(stories: { is_deleted: true })
+    @comments = comments_for_index_base
       .limit(COMMENTS_PER_PAGE)
       .offset((@page - 1) * COMMENTS_PER_PAGE)
 
@@ -470,6 +464,14 @@ class CommentsController < ApplicationController
   end
 
 private
+
+  def comments_for_index_base
+    Comment.accessible_to_user(@user)
+      .not_on_story_hidden_by(@user)
+      .order("id DESC")
+      .joins("STRAIGHT_JOIN stories ON stories.id = comments.story_id")
+      .where.not(stories: { is_deleted: true })
+  end
 
   def preview(comment)
     comment.previewing = true
