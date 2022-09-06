@@ -67,3 +67,4 @@ end
 
 gem 'rails-perftest', git: 'https://github.com/rails/rails-perftest', ref: '21113d31e63a6e9da7c195af8158587f5e941761'
 gem 'ruby-prof'
+gem 'ffi'
