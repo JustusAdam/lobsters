@@ -21,6 +21,14 @@ fn new_schema(columns: &[String]) -> Schema {
     Rc::new(columns.iter().cloned().enumerate().map(|(a, b)| (b, a)).collect())
 }
 
+fn var_opt<K: AsRef<ffi::OsStr>>(key: K, default: String) -> Option<String> {
+    match std::env::var(key) {
+        Ok(s) => Some(s),
+        Err(std::env::VarError::NotPresent) => None,
+        Err(e) => panic!("{e}"),
+    }
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn setup_connection(dat_file: *const c_char) -> Box<Connection> {
     let s = ffi::CStr::from_ptr(dat_file);
@@ -81,10 +89,24 @@ pub unsafe extern "C" fn setup_connection(dat_file: *const c_char) -> Box<Connec
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn run_query(conn: &mut Connection, q: *const c_char, key: c_int) -> Box<QueryResult> {
+pub unsafe extern "C" fn install_query(conn: &mut Connection, query: *const c_char) {
+    conn.0.extend_recipe(ffi::CStr::from_ptr(query).to_str().unwrap()).unwrap()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn install_udf(conn: &mut Connection, udf: *const c_char) {
+    conn.0.install_udf(ffi::CStr::from_ptr(udf).to_str().unwrap()).unwrap()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn run_query(conn: &mut Connection, q: *const c_char, key: c_int) -> Option<Box<QueryResult>> {
     let mut view = conn.0.view(ffi::CStr::from_ptr(q).to_str().unwrap()).unwrap().into_sync();
     let res = view.lookup(&[key.into()], true).unwrap();
-    Box::new(QueryResult(res.into_iter(), new_schema(view.columns())))
+    if res.len() == 0 {
+        None
+    } else {
+        Some(Box::new(QueryResult(res.into_iter(), new_schema(view.columns()))))
+    }
 }
 
 #[no_mangle]
