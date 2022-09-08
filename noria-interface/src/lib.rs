@@ -3,6 +3,8 @@ use std::ffi;
 extern crate noria;
 extern crate tokio;
 extern crate nom_sql;
+#[macro_use]
+extern crate lazy_static;
 
 use std::rc::Rc;
 use std::collections::HashMap;
@@ -19,6 +21,12 @@ pub struct QueryResult(std::vec::IntoIter<Vec<noria::DataType>>, Schema);
 
 type Schema = Rc<HashMap<String, usize>>;
 
+lazy_static! {
+    // Actually excludes more things
+    static ref EXCLUDE_FOREIGN_KEY_CONSTRAINTS : regex::Regex = 
+        regex::Regex::new(r",\s*CONSTRAINT [\w`]+ FOREIGN KEY \([`\w]+\) REFERENCES [\w`]+ \([`\w]+\)|ON (:?DELETE|UPDATE) CASCADE|DEFAULT current_timestamp\(\)").unwrap();
+}
+
 fn new_schema(columns: &[String]) -> Schema {
     Rc::new(columns.iter().cloned().enumerate().map(|(a, b)| (b, a)).collect())
 }
@@ -31,7 +39,7 @@ pub unsafe extern "C" fn setup_connection(dat_file: *const c_char) -> Box<Connec
     println!("Recieved filename {}", fname);
     let mut b = noria::Builder::default();
     b.disable_partial();
-    let mut handle = b.start_simple().unwrap();
+    let mut handle = Box::leak(Box::new(b.start_simple().unwrap()));
     let out = handle.clone();
     {   
         use nom_sql::parser::*;
@@ -41,8 +49,9 @@ pub unsafe extern "C" fn setup_connection(dat_file: *const c_char) -> Box<Connec
         use std::io::BufRead;
         reader.split(';' as u8).for_each(|v| {
             let owned_s = String::from_utf8(v.unwrap()).unwrap();
-            let s = owned_s.trim();
-            if s.starts_with("/*") { return; }
+            let constraints_droped = EXCLUDE_FOREIGN_KEY_CONSTRAINTS.replace_all(&owned_s, "");
+            let s = constraints_droped.trim();
+            if s.starts_with("/*") || s.starts_with("SET") || s.is_empty() { return; }
             match parse_query(s) {
                 Ok(SqlQuery::CreateTable(_)) => {
                     handle.extend_recipe(s).unwrap();
@@ -78,7 +87,7 @@ pub unsafe extern "C" fn setup_connection(dat_file: *const c_char) -> Box<Connec
                 }
                 Err(e) => {
                     errors += 1;
-                    eprintln!("Unparseable query. Error: {}\n {}", e, s);
+                    eprintln!("Unparseable query. Error: {}\n {:?}", e, s);
                 }   
                 Ok(_) => {
                     errors += 1;

@@ -14,8 +14,31 @@ class CommentsIndexTest < ActionDispatch::PerformanceTest
   HIDDEN_STORIES_QUERY = ENV.fetch "NOHUA_HIDDEN_STORIES_QUERY", "hidden_stories_query"
   FETCH_HIDDEN_Q = "fetch_hidden"
 
+  def self.get_handle 
+    unless const_defined?(:NORIA_CONNECTION)
+      dbcfg = Rails.configuration.database_configuration[Rails.env]
+      Tempfile.create('test-db-dump.sql') do |tempfile|
+        puts "dumping database to temporary file #{tempfile.path}"
+        dbargs = []
+        add_arg = ->(name, arg) { dbargs.push(arg, dbcfg[name]) unless dbcfg[name].nil? }
+        add_arg.call("host", "--host")
+        add_arg.call("port", "--port")
+        add_arg.call("socket", "--socket")
+        puts "Using conf parameters #{dbargs}"
+
+        system "mariadb-dump", "--skip-create-options", "--compact", dbcfg["database"], *dbargs, 1=>tempfile.path
+        puts "Dump filled the file with #{tempfile.size} bytes"
+        const_set :NORIA_CONNECTION, NoriaInterface.setup_connection(tempfile.path)
+        NoriaInterface.install_udf NORIA_CONNECTION, COMMENTS_QUERY
+        # NoriaInterface.install_udf NORIA_CONNECTION, HIDDEN_STORIES_QUERY
+        # NoriaInterface.install_query NORIA_CONNECTION, "VIEW #{FETCH_HIDDEN_Q}: SELECT * FROM #{HIDDEN_STORIES_QUERY} WHERE uid = ?"
+      end
+    end
+    NORIA_CONNECTION
+  end
+
   setup do 
-    NoriaInterface.get_handle
+    self.class.get_handle
   end
 
   def make_chunked_fetcher(base_query, key, chunk_size)
@@ -66,7 +89,7 @@ class CommentsIndexTest < ActionDispatch::PerformanceTest
     
     comments = []
 
-    make_chunked_fetcher("SELECT * FROM #{COMMENTS_QUERY} WHERE id = ?", CommentsController.COMMENTS_PER_PAGE).each do |res|
+    make_chunked_fetcher("SELECT * FROM #{COMMENTS_QUERY}", 0, CommentsController::COMMENTS_PER_PAGE).each do |res|
       loop do
         row = NoriaInterface.next_row res
         break if row.nil?
@@ -118,7 +141,7 @@ class CommentsIndexTest < ActionDispatch::PerformanceTest
             is_moderator: bool.call("is_moderator"),
             pushover_mentions: bool.call("pushover_mentions"),
             rss_token: string.call("rss_token"),
-            mailing_list_known: string.call.call("mailing_list_token"),
+            mailing_list_token: string.call.call("mailing_list_token"),
             mailiing_list_mode: int.call("mailing_list_mode"),
             karma: int.call("karma"),
             #t.datetime "banned_at"

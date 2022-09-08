@@ -11,6 +11,8 @@ crate-type = ["cdylib"]
 noria = { path = "../../research/noria/noria-server",  package = "noria-server" }
 tokio = "0.1"
 nom-sql = "0.0.6"
+regex = "1"
+lazy_static = "1.4"
 
 [replace]
 'nom-sql:0.0.6' = { git = " https://github.com/JustusAdam/nom-sql", branch = "udfs" }
