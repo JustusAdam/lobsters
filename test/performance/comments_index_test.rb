@@ -43,20 +43,18 @@ class CommentsIndexTest < ActionDispatch::PerformanceTest
 
   def make_chunked_fetcher(base_query, key, chunk_size)
     Enumerator.new do |y|
-      offs = 0
+      offset = 0
       limit = chunk_size
-      known_queries = {}
+      known_queries = Set.new
       loop do
-        qname = Random.bytes(12)
         query = "#{base_query} LIMIT #{limit} OFFSET #{offset}"
+        qname = query.hash.abs
         unless known_queries.include? query
-          NoriaInterface.install_query NoriaInterface.get_handle, "VIEW #{qname}: #{query}"
-          known_queries[query] = qname
-        else
-          qname = known_queries[query]
+          NoriaInterface.install_query self.class.get_handle, "VIEW #{qname}: #{query}"
+          known_queries << qname
         end
-        res = NoriaInterface.run_query NoriaInterface.get_handle, qname, key
-        break if res.nil?
+        res = NoriaInterface.run_query self.class.get_handle, qname.to_s, key
+        break if res.null?
         y << res
         offset += chunk_size
       end
@@ -91,8 +89,9 @@ class CommentsIndexTest < ActionDispatch::PerformanceTest
 
     make_chunked_fetcher("SELECT * FROM #{COMMENTS_QUERY}", 0, CommentsController::COMMENTS_PER_PAGE).each do |res|
       loop do
+        puts "#{comments.size} comments processed"
         row = NoriaInterface.next_row res
-        break if row.nil?
+        break if row.null? || CommentsController::COMMENTS_PER_PAGE <= comments.size
         fetch = ->(convert) {
           ->(n) {
             dt = NoriaInterface.row_index(row, n)
@@ -142,7 +141,7 @@ class CommentsIndexTest < ActionDispatch::PerformanceTest
             pushover_mentions: bool.call("pushover_mentions"),
             rss_token: string.call("rss_token"),
             mailing_list_token: string.call.call("mailing_list_token"),
-            mailiing_list_mode: int.call("mailing_list_mode"),
+            mailing_list_mode: int.call("mailing_list_mode"),
             karma: int.call("karma"),
             #t.datetime "banned_at"
             banned_by_user_id: int.call("banned_by_user_id"), 

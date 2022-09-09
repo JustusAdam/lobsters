@@ -39,7 +39,7 @@ pub unsafe extern "C" fn setup_connection(dat_file: *const c_char) -> Box<Connec
     println!("Recieved filename {}", fname);
     let mut b = noria::Builder::default();
     b.disable_partial();
-    let mut handle = Box::leak(Box::new(b.start_simple().unwrap()));
+    let handle = Box::leak(Box::new(b.start_simple().unwrap()));
     let out = handle.clone();
     {   
         use nom_sql::parser::*;
@@ -111,20 +111,28 @@ pub unsafe extern "C" fn install_udf(conn: &mut Connection, udf: *const c_char) 
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn run_query(conn: &mut Connection, q: *const c_char, key: c_int) -> Option<Box<QueryResult>> {
+pub unsafe extern "C" fn run_query0(conn: &mut Connection, q: *const c_char, key: c_int) -> Option<Box<QueryResult>> {
     let mut view = conn.0.view(ffi::CStr::from_ptr(q).to_str().unwrap()).unwrap().into_sync();
     let res = view.lookup(&[key.into()], true).unwrap();
     if res.len() == 0 {
+        println!("No result found");
         None
     } else {
+        println!("{} results found", res.len());
         Some(Box::new(QueryResult(res.into_iter(), new_schema(view.columns()))))
     }
 }
 
 #[no_mangle]
-pub extern "C" fn next_row(result: &mut QueryResult) -> Option<Box<Row>> {
+pub unsafe extern "C" fn free_query_result(res: Option<Box<QueryResult>>) {}
+
+#[no_mangle]
+pub extern "C" fn next_row0(result: &mut QueryResult) -> Option<Box<Row>> {
     result.0.next().map(|i| Box::new(Row(i, result.1.clone())))
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn free_row(row: Option<Box<Row>>) {}
 
 #[no_mangle]
 pub unsafe extern "C" fn row_index(row: &Row, key: *const c_char) -> &DataType {
