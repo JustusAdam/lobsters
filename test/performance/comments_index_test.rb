@@ -41,17 +41,20 @@ class CommentsIndexTest < ActionDispatch::PerformanceTest
     self.class.get_handle
   end
 
+  CHUNKED_FETCHER_KNOWN_QUERIES = Set.new
+
   def make_chunked_fetcher(base_query, key, chunk_size)
     Enumerator.new do |y|
       offset = 0
       limit = chunk_size
-      known_queries = Set.new
       loop do
         query = "#{base_query} LIMIT #{limit} OFFSET #{offset}"
         qname = query.hash.abs
-        unless known_queries.include? query
+        puts "Creating fetcher for query #{qname} created"
+        unless CHUNKED_FETCHER_KNOWN_QUERIES.include? query
           NoriaInterface.install_query self.class.get_handle, "VIEW #{qname}: #{query}"
-          known_queries << qname
+          CHUNKED_FETCHER_KNOWN_QUERIES << qname
+          sleep 5
         end
         res = NoriaInterface.run_query self.class.get_handle, qname.to_s, key
         break if res.null?
@@ -87,7 +90,8 @@ class CommentsIndexTest < ActionDispatch::PerformanceTest
     
     comments = []
 
-    make_chunked_fetcher("SELECT * FROM #{COMMENTS_QUERY}", 0, CommentsController::COMMENTS_PER_PAGE).each do |res|
+    f = make_chunked_fetcher("SELECT * FROM #{COMMENTS_QUERY}", 0, CommentsController::COMMENTS_PER_PAGE)
+    f.each do |res|
       loop do
         puts "#{comments.size} comments processed"
         row = NoriaInterface.next_row res
@@ -95,15 +99,15 @@ class CommentsIndexTest < ActionDispatch::PerformanceTest
         fetch = ->(convert) {
           ->(n) {
             dt = NoriaInterface.row_index(row, n)
-            if NoriaInterface.datatype_is_null(dt) then nil else convert(dt) end
+            if NoriaInterface.datatype_is_null(dt) then nil else convert.call(dt) end
           }
         }
-        int = fetch.call(NoriaInterface.datatype_to_int)
-        string = fetch.call(NoriaInterface.datatype_to_string)
-        float = fetch.call(NoriaInterface.datatype_to_float)
-        bool = fetch.call(NoriaInterface.datatype_to_bool)
+        int = fetch.call(NoriaInterface.method(:datatype_to_int))
+        string = fetch.call(NoriaInterface.method(:datatype_to_string))
+        float = fetch.call(NoriaInterface.method(:datatype_to_float))
+        bool = fetch.call(NoriaInterface.method(:datatype_to_bool))
         comments.push Comment.new(
-          id: int.call(row, "id"),
+          id: int.call("id"),
           #t.datetime "created_at", null: false
           #t.datetime "updated_at"
           short_id: string.call("short_id"),
@@ -140,7 +144,7 @@ class CommentsIndexTest < ActionDispatch::PerformanceTest
             is_moderator: bool.call("is_moderator"),
             pushover_mentions: bool.call("pushover_mentions"),
             rss_token: string.call("rss_token"),
-            mailing_list_token: string.call.call("mailing_list_token"),
+            mailing_list_token: string.call("mailing_list_token"),
             mailing_list_mode: int.call("mailing_list_mode"),
             karma: int.call("karma"),
             #t.datetime "banned_at"

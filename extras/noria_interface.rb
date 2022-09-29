@@ -3,10 +3,10 @@ module NoriaInterface
   extend FFI::Library
   ffi_lib [FFI::CURRENT_PROCESS, "noria-interface/target/debug/libnoria_interface." + FFI::Platform::LIBSUFFIX]
   attach_function :setup_connection, [:string], :pointer
-  attach_function :run_query0, [:pointer, :string, :int], :pointer
+  attach_function :run_query0, [:pointer, :string, :long_long], :pointer
   attach_function :next_row0, [:pointer], :pointer
   attach_function :row_index, [:pointer, :string], :pointer
-  attach_function :datatype_to_int, [:pointer], :int
+  attach_function :datatype_to_int, [:pointer], :long_long
   attach_function :datatype_to_string, [:pointer], :string
   attach_function :datatype_to_float, [:pointer], :double
   attach_function :datatype_to_bool, [:pointer], :bool

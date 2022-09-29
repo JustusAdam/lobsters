@@ -9,7 +9,7 @@ extern crate lazy_static;
 use std::rc::Rc;
 use std::collections::HashMap;
 
-use std::os::raw::{c_int, c_char};
+use std::os::raw::{c_double, c_char, c_longlong};
 
 use noria::DataType;
 
@@ -39,6 +39,9 @@ pub unsafe extern "C" fn setup_connection(dat_file: *const c_char) -> Box<Connec
     println!("Recieved filename {}", fname);
     let mut b = noria::Builder::default();
     b.disable_partial();
+    if std::env::var("NORIA_LOGGIN").is_ok() {
+        b.log_with(noria::logger_pls());
+    }
     let handle = Box::leak(Box::new(b.start_simple().unwrap()));
     let out = handle.clone();
     {   
@@ -102,16 +105,21 @@ pub unsafe extern "C" fn setup_connection(dat_file: *const c_char) -> Box<Connec
 
 #[no_mangle]
 pub unsafe extern "C" fn install_query(conn: &mut Connection, query: *const c_char) {
-    conn.0.extend_recipe(ffi::CStr::from_ptr(query).to_str().unwrap()).unwrap();
+    let qstr = ffi::CStr::from_ptr(query).to_str().unwrap();
+    println!("Setting up new query {}", qstr);
+    conn.0.extend_recipe(qstr).unwrap();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn install_udf(conn: &mut Connection, udf: *const c_char) {
-    conn.0.install_udtf(ffi::CStr::from_ptr(udf).to_str().unwrap(), false, &[]).unwrap()
+    conn.0.install_udtf(ffi::CStr::from_ptr(udf).to_str().unwrap(), false, &[]).unwrap();
+    let mut gfile = std::fs::OpenOptions::new().truncate(true).create(true).write(true).open("noria-graph.gv").unwrap();
+    use std::io::Write;
+    write!(gfile, "{}", conn.0.graphviz().unwrap());
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn run_query0(conn: &mut Connection, q: *const c_char, key: c_int) -> Option<Box<QueryResult>> {
+pub unsafe extern "C" fn run_query0(conn: &mut Connection, q: *const c_char, key: c_longlong) -> Option<Box<QueryResult>> {
     let mut view = conn.0.view(ffi::CStr::from_ptr(q).to_str().unwrap()).unwrap().into_sync();
     let res = view.lookup(&[key.into()], true).unwrap();
     if res.len() == 0 {
@@ -124,7 +132,7 @@ pub unsafe extern "C" fn run_query0(conn: &mut Connection, q: *const c_char, key
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn free_query_result(res: Option<Box<QueryResult>>) {}
+pub unsafe extern "C" fn free_query_result(_res: Option<Box<QueryResult>>) {}
 
 #[no_mangle]
 pub extern "C" fn next_row0(result: &mut QueryResult) -> Option<Box<Row>> {
@@ -132,15 +140,17 @@ pub extern "C" fn next_row0(result: &mut QueryResult) -> Option<Box<Row>> {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn free_row(row: Option<Box<Row>>) {}
+pub unsafe extern "C" fn free_row(_row: Option<Box<Row>>) {}
 
 #[no_mangle]
 pub unsafe extern "C" fn row_index(row: &Row, key: *const c_char) -> &DataType {
-    &row.0[row.1[ffi::CStr::from_ptr(key).to_str().unwrap()]]
+    let keystr = ffi::CStr::from_ptr(key).to_str().expect("Could not convert row key to rust string");
+    let idx = row.1.get(keystr).unwrap_or_else(|| panic!("Key '{}' not found in schema.", keystr));
+    &row.0.get(*idx).unwrap_or_else(|| panic!("Index {} (for key {}) not found in row.", idx, keystr))
 }
 
 #[no_mangle]
-pub extern "C" fn datatype_to_int(dt: &DataType) -> c_int {
+pub extern "C" fn datatype_to_int(dt: &DataType) -> c_longlong {
     dt.clone().into()
 }
 
@@ -152,7 +162,7 @@ pub extern "C" fn datatype_to_string(dt: &DataType) -> *mut c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn datatype_to_float(dt: &DataType) -> f64 {
+pub extern "C" fn datatype_to_float(dt: &DataType) -> c_double {
     dt.clone().into()
 }
 

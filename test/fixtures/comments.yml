@@ -5,4 +5,5 @@
     user: <%= rand_user %>
     parent_comment: <%= rand > 0.7 ? nil : rand_comment %>
     comment: <%= "comment#{n}" %>
+    hat: <%= rand_hat %>
 <% end %>

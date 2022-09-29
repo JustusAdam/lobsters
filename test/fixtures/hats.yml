@@ -1,7 +1,7 @@
 <% num_hats.times do |n| %>
-  hat_<%= n %>:
+  <%= hat_id(n) %>:
     <% u = rand_user %>
     user: <%= u %>
     granted_by_user: <%= u %>
-    hat: <%= "hat#{n}" %>
+    hat: <%= hat_id(n) %>
 <% end %>

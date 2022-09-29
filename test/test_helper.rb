@@ -102,6 +102,14 @@ class ActiveSupport::TestCase
       comment_id(sample(NUM_COMMENTS))
     end
 
+    def hat_id(n)
+      "hat_#{n}"
+    end
+
+    def rand_hat
+      hat_id(sample(NUM_HATS))
+    end
+
   private 
     def sample(n)
       rand(Range::new(0, n, true))
