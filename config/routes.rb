@@ -111,6 +111,7 @@ Rails.application.routes.draw do
   get "/comments" => "comments#index"
   get "/comments/extra/index_without_prefetching" => "comments#index_without_prefetching"
   get "/comments/extra/naive_index" => "comments#naive_index"
+  get "/comments/extra/nohua_index" => "comments#nohua_index"
 
   get "/messages/sent" => "messages#sent"
   get "/messages" => "messages#index"
