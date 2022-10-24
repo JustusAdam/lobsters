@@ -15,6 +15,8 @@ module NoriaInterface
   attach_function :install_query, [:pointer, :string], :void
   attach_function :free_row, [:pointer], :void
   attach_function :free_query_result, [:pointer], :void
+  attach_function :remove_view, [:string], :void
+  attach_function :advance_result, [:pointer, :int], :void
 
   def self.next_row(ptr) 
     FFI::AutoPointer.new(next_row0(ptr), method(:free_row))

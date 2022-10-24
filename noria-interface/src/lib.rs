@@ -9,7 +9,7 @@ extern crate lazy_static;
 use std::rc::Rc;
 use std::collections::HashMap;
 
-use std::os::raw::{c_double, c_char, c_longlong};
+use std::os::raw::{c_double, c_char, c_longlong, c_int};
 
 use noria::DataType;
 
@@ -108,15 +108,23 @@ pub unsafe extern "C" fn install_query(conn: &mut Connection, query: *const c_ch
     let qstr = ffi::CStr::from_ptr(query).to_str().unwrap();
     println!("Setting up new query {}", qstr);
     conn.0.extend_recipe(qstr).unwrap();
+    dump_graph(conn);
+}
+
+fn dump_graph(conn: &mut Connection) {
+    let mut gfile = std::fs::OpenOptions::new().truncate(true).create(true).write(true).open("noria-graph.gv").unwrap();
+    use std::io::Write;
+    write!(gfile, "{}", conn.0.graphviz().unwrap());
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn install_udf(conn: &mut Connection, udf: *const c_char) {
     conn.0.install_udtf(ffi::CStr::from_ptr(udf).to_str().unwrap(), false, &[]).unwrap();
-    let mut gfile = std::fs::OpenOptions::new().truncate(true).create(true).write(true).open("noria-graph.gv").unwrap();
-    use std::io::Write;
-    write!(gfile, "{}", conn.0.graphviz().unwrap());
+    dump_graph(conn);
 }
+
+#[no_mangle]
+pub extern "C" fn remove_view(view: *const c_char) {}
 
 #[no_mangle]
 pub unsafe extern "C" fn run_query0(conn: &mut Connection, q: *const c_char, key: c_longlong) -> Option<Box<QueryResult>> {
@@ -137,6 +145,13 @@ pub unsafe extern "C" fn free_query_result(_res: Option<Box<QueryResult>>) {}
 #[no_mangle]
 pub extern "C" fn next_row0(result: &mut QueryResult) -> Option<Box<Row>> {
     result.0.next().map(|i| Box::new(Row(i, result.1.clone())))
+}
+
+#[no_mangle]
+pub extern "C" fn advance_result(result: &mut QueryResult, len: c_int) {
+    for _ in 0..(len as usize) {
+        result.0.next();
+    }
 }
 
 #[no_mangle]

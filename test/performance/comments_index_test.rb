@@ -41,23 +41,31 @@ class CommentsIndexTest < ActionDispatch::PerformanceTest
     self.class.get_handle
   end
 
-  CHUNKED_FETCHER_KNOWN_QUERIES = Set.new
+  CHUNKED_FETCHER_KNOWN_QUERIES = Hash.new
 
   def make_chunked_fetcher(base_query, key, chunk_size)
     Enumerator.new do |y|
       offset = 0
       limit = chunk_size
       loop do
-        query = "#{base_query} LIMIT #{limit} OFFSET #{offset}"
-        qname = query.hash.abs
-        puts "Creating fetcher for query #{qname} created"
-        unless CHUNKED_FETCHER_KNOWN_QUERIES.include? query
+        prior = CHUNKED_FETCHER_KNOWN_QUERIES[base_query]
+        qname = nil
+        qlim = limit + offset
+        if !prior.nil? && prior[1] >= qlim
+          qname = prior[0]
+        else
+          query = "#{base_query} LIMIT #{qlim}"
+          qname = query.hash.abs
+          puts "Creating fetcher for query #{qname} created"
+          if prior.nil? 
+            NoriaInterface.remove_view qname.to_s
+          end
           NoriaInterface.install_query self.class.get_handle, "VIEW #{qname}: #{query}"
-          CHUNKED_FETCHER_KNOWN_QUERIES << qname
-          sleep 5
+          CHUNKED_FETCHER_KNOWN_QUERIES[base_query] = [qname, qlim]
         end
         res = NoriaInterface.run_query self.class.get_handle, qname.to_s, key
         break if res.null?
+        NoriaInterface.advance_result(res, offset)
         y << res
         offset += chunk_size
       end
@@ -93,7 +101,6 @@ class CommentsIndexTest < ActionDispatch::PerformanceTest
     f = make_chunked_fetcher("SELECT * FROM #{COMMENTS_QUERY}", 0, CommentsController::COMMENTS_PER_PAGE)
     f.each do |res|
       loop do
-        puts "#{comments.size} comments processed"
         row = NoriaInterface.next_row res
         break if row.null? || CommentsController::COMMENTS_PER_PAGE <= comments.size
         fetch = ->(convert) {
@@ -174,6 +181,8 @@ class CommentsIndexTest < ActionDispatch::PerformanceTest
           )
         )
       end
+      break if CommentsController::COMMENTS_PER_PAGE <= comments.size
+      # Needed, because otherwise inner break does not cascade
     end
 
   end
