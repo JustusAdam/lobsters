@@ -4,4 +4,5 @@
     user: <%= u %>
     granted_by_user: <%= u %>
     hat: <%= hat_id(n) %>
+    created_at: <%= DateTime.current %>
 <% end %>

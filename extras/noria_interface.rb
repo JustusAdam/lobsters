@@ -17,9 +17,46 @@ module NoriaInterface
   attach_function :free_query_result, [:pointer], :void
   attach_function :remove_view, [:string], :void
   attach_function :advance_result, [:pointer, :int], :void
+  attach_function :datatype_to_timestamp, [:pointer], :long_long
+
+  class Row 
+    def initialize(r)
+      @row = r
+    end
+
+    def index(field)
+      NoriaInterface.row_index(@row, field)
+    end
+
+    def int(field)
+      v = index(field)
+      NoriaInterface.datatype_to_int(v) unless NoriaInterface.datatype_is_null(v)
+    end
+
+    def string(field)
+      v = index(field)
+      NoriaInterface.datatype_to_string(v).encode(Encoding::UTF_8) unless NoriaInterface.datatype_is_null(v)
+    end
+
+    def float(field)
+      i = index(field)
+      NoriaInterface.datatype_to_float(i) unless NoriaInterface.datatype_is_null(i)
+    end
+
+    def bool(field)
+      v = index(field)
+      NoriaInterface.datatype_to_bool(v) unless NoriaInterface.datatype_is_null(v)
+    end
+
+    def time(field)
+      v = index(field)
+      Time.at(NoriaInterface.datatype_to_timestamp(v)) unless NoriaInterface.datatype_is_null(v)
+    end
+  end
 
   def self.next_row(ptr) 
-    FFI::AutoPointer.new(next_row0(ptr), method(:free_row))
+    ptr = FFI::AutoPointer.new(next_row0(ptr), method(:free_row))
+    Row.new(ptr) unless ptr.null?
   end
 
   def self.run_query(ptr, str, int)

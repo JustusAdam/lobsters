@@ -5,6 +5,7 @@ extern crate tokio;
 extern crate nom_sql;
 #[macro_use]
 extern crate lazy_static;
+extern crate chrono;
 
 use std::rc::Rc;
 use std::collections::HashMap;
@@ -160,7 +161,7 @@ pub unsafe extern "C" fn free_row(_row: Option<Box<Row>>) {}
 #[no_mangle]
 pub unsafe extern "C" fn row_index(row: &Row, key: *const c_char) -> &DataType {
     let keystr = ffi::CStr::from_ptr(key).to_str().expect("Could not convert row key to rust string");
-    let idx = row.1.get(keystr).unwrap_or_else(|| panic!("Key '{}' not found in schema.", keystr));
+    let idx = row.1.get(keystr).unwrap_or_else(|| panic!("Key '{}' not found in schema. {:?}", keystr, row.1.keys()));
     &row.0.get(*idx).unwrap_or_else(|| panic!("Index {} (for key {}) not found in row.", idx, keystr))
 }
 
@@ -190,4 +191,14 @@ pub extern "C" fn datatype_to_bool(dt: &DataType) -> bool {
 #[no_mangle]
 pub extern "C" fn datatype_is_null(dt: &DataType) -> bool {
     dt.is_none()
+}
+
+#[no_mangle]
+pub extern "C" fn datatype_to_timestamp(dt: &DataType) -> i64 {
+    use chrono::naive::NaiveDateTime;
+    match dt {
+        DataType::Timestamp(ts) => ts.timestamp(),
+        DataType::Text(t) => NaiveDateTime::parse_from_str(t.to_str().unwrap(), "%Y-%m-%d %H:%M:%S").unwrap().timestamp(),
+        _ => dt.clone().into(),
+    }
 }

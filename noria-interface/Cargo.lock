@@ -944,6 +944,7 @@ dependencies = [
 name = "noria-interface"
 version = "0.1.0"
 dependencies = [
+ "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "nom-sql 0.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "noria-server 0.1.0",

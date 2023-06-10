@@ -402,82 +402,72 @@ class CommentsController < ApplicationController
     f.each do |res|
       loop do
         row = NoriaInterface.next_row res
-        break if row.null? || COMMENTS_PER_PAGE <= @comments.size
-        fetch = ->(convert) {
-          ->(n) {
-            dt = NoriaInterface.row_index(row, n)
-            if NoriaInterface.datatype_is_null(dt) then nil else convert.call(dt) end
-          }
-        }
-        int = fetch.call(NoriaInterface.method(:datatype_to_int))
-        string = fetch.call(NoriaInterface.method(:datatype_to_string))
-        float = fetch.call(NoriaInterface.method(:datatype_to_float))
-        bool = fetch.call(NoriaInterface.method(:datatype_to_bool))
+        break if !row || COMMENTS_PER_PAGE <= @comments.size
         @comments.push Comment.new(
-          id: int.call("id"),
-          #t.datetime "created_at", null: false
+          id: row.int("id"),
           #t.datetime "updated_at"
-          short_id: string.call("short_id"),
+          short_id: row.string("short_id"),
           story: Story.new(
-            id: int.call("story_id"),
+            id: row.int("story_id"),
             #"user_id", null: false, unsigned: true
-            url: string.call("url"),
-            title: string.call("title"),
-            description: string.call("description"),
+            url: row.string("url"),
+            title: row.string("title"),
+            description: row.string("description"),
             #"short_id", limit: 6, default: "", null: false
-            #is_deleted: bool.call("is_deleted"),
+            #is_deleted: row.bool("is_deleted"),
             #"score", default: 1, null: false
             #"flags", default: 0, null: false, unsigned: true
-            is_moderated: bool.call("is_moderated"),
-            hotness: float.call("hotness"),
-            markeddown_description: string.call("markeddown_description"),
-            story_cache: string.call("story_cache"),
-            comments_count: int.call("comments_count"),
-            merged_story_id: int.call("merged_story_id"),
-            twitter_id: string.call("twitter_id"),
-            user_is_author: bool.call("user_is_author"),
-            user_is_following: bool.call("user_is_following"),
+            is_moderated: row.bool("is_moderated"),
+            hotness: row.float("hotness"),
+            markeddown_description: row.string("markeddown_description"),
+            story_cache: row.string("story_cache"),
+            comments_count: row.int("comments_count"),
+            merged_story_id: row.int("merged_story_id"),
+            twitter_id: row.string("twitter_id"),
+            user_is_author: row.bool("user_is_author"),
+            user_is_following: row.bool("user_is_following"),
           ),
           user: User.new(
-            id: int.call("user_id"),
-            username: string.call("username"),
-            email: string.call("email"),
-            password_digest: string.call("password_digest"),
-            is_admin: bool.call("is_admin"),
-            password_reset_token: string.call("password_reset_token"),
-            session_token: string.call("session_token"),
-            about: string.call("about"),
-            invited_by_user_id: int.call("invited_by_user_id"),
-            is_moderator: bool.call("is_moderator"),
-            pushover_mentions: bool.call("pushover_mentions"),
-            rss_token: string.call("rss_token"),
-            mailing_list_token: string.call("mailing_list_token"),
-            mailing_list_mode: int.call("mailing_list_mode"),
-            karma: int.call("karma"),
+            id: row.int("user_id"),
+            username: row.string("username"),
+            email: row.string("email"),
+            password_digest: row.string("password_digest"),
+            is_admin: row.bool("is_admin"),
+            password_reset_token: row.string("password_reset_token"),
+            session_token: row.string("session_token"),
+            about: row.string("about"),
+            invited_by_user_id: row.int("invited_by_user_id"),
+            is_moderator: row.bool("is_moderator"),
+            pushover_mentions: row.bool("pushover_mentions"),
+            rss_token: row.string("rss_token"),
+            mailing_list_token: row.string("mailing_list_token"),
+            mailing_list_mode: row.int("mailing_list_mode"),
+            karma: row.int("karma"),
             #t.datetime "banned_at"
-            banned_by_user_id: int.call("banned_by_user_id"), 
-            banned_reason: string.call("banned_reason"),
+            banned_by_user_id: row.int("banned_by_user_id"), 
+            banned_reason: row.string("banned_reason"),
             #t.datetime "deleted_at"
             #t.datetime "disabled_invite_at"
-            disabled_invite_by_user_id: int.call("disabled_invite_by_user_id"),
-            disabled_invite_reason: string.call("disabled_invite_reason"),
-            settings: string.call("settings")
+            disabled_invite_by_user_id: row.int("disabled_invite_by_user_id"),
+            disabled_invite_reason: row.string("disabled_invite_reason"),
+            settings: row.string("settings")
           ),
-          parent_comment_id: int.call("parent_comment_id"),
-          thread_id: string.call("thread_id"),
-          comment: string.call("comment"),
-          score: int.call("score"),
-          flags: int.call("flags"),
-          confidence: float.call("confidence"),
-          markeddown_comment: string.call("markeddown_comment"),
-          is_deleted: bool.call("is_deleted"),
-          is_moderated: bool.call("is_moderated"),
-          is_from_email: bool.call("is_from_email"),
+          parent_comment_id: row.int("parent_comment_id"),
+          thread_id: row.string("thread_id"),
+          comment: row.string("comment"),
+          score: row.int("score"),
+          flags: row.int("flags"),
+          confidence: row.float("confidence"),
+          markeddown_comment: row.string("markeddown_comment"),
+          is_deleted: row.bool("is_deleted"),
+          is_moderated: row.bool("is_moderated"),
+          is_from_email: row.bool("is_from_email"),
           hat: Hat.new(
-            id: int.call("hat_id"),
-            hat: string.call("hat"),
-            link: string.call("link"),
-            modlog_use: bool.call("modlog_use")
+            id: row.int("hat_id"),
+            hat: row.string("hat"),
+            link: row.string("link"),
+            modlog_use: row.bool("modlog_use"),
+            created_at: row.time("created_at")
           )
         )
       end
